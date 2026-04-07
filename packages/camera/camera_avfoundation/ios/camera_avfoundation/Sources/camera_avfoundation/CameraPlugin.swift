@@ -128,6 +128,9 @@ extension CameraPlugin: CameraApi {
       guard let strongSelf = self else { return }
 
       let discoveryDevices: [AVCaptureDevice.DeviceType] = [
+        .builtInTripleCamera,
+        .builtInDualWideCamera,
+        .builtInDualCamera,
         .builtInWideAngleCamera,
         .builtInTelephotoCamera,
         .builtInUltraWideCamera,
@@ -138,9 +141,20 @@ extension CameraPlugin: CameraApi {
         mediaType: .video,
         position: .unspecified)
 
+      let sortedDevices = devices.sorted {
+        let leftRank = strongSelf.cameraDiscoveryRank(for: $0)
+        let rightRank = strongSelf.cameraDiscoveryRank(for: $1)
+
+        if leftRank != rightRank {
+          return leftRank < rightRank
+        }
+
+        return $0.uniqueID < $1.uniqueID
+      }
+
       var reply: [PlatformCameraDescription] = []
 
-      for device in devices {
+      for device in sortedDevices {
         let lensFacing = strongSelf.platformLensDirection(for: device)
         let lensType = strongSelf.platformLensType(for: device)
         let cameraDescription = PlatformCameraDescription(
@@ -152,6 +166,38 @@ extension CameraPlugin: CameraApi {
       }
 
       completion(.success(reply))
+    }
+  }
+
+  private func cameraDiscoveryRank(for device: CaptureDevice) -> Int {
+    switch device.position {
+    case .back:
+      return backCameraDiscoveryRank(for: device.deviceType)
+    case .front:
+      return 100
+    case .unspecified:
+      return 200
+    @unknown default:
+      return 200
+    }
+  }
+
+  private func backCameraDiscoveryRank(for deviceType: AVCaptureDevice.DeviceType) -> Int {
+    switch deviceType {
+    case .builtInTripleCamera:
+      return 0
+    case .builtInDualWideCamera:
+      return 1
+    case .builtInDualCamera:
+      return 2
+    case .builtInWideAngleCamera:
+      return 3
+    case .builtInUltraWideCamera:
+      return 4
+    case .builtInTelephotoCamera:
+      return 5
+    default:
+      return 6
     }
   }
 
@@ -176,7 +222,11 @@ extension CameraPlugin: CameraApi {
       return .telephoto
     case .builtInUltraWideCamera:
       return .ultraWide
+    case .builtInDualCamera:
+      return .wide
     case .builtInDualWideCamera:
+      return .wide
+    case .builtInTripleCamera:
       return .wide
     default:
       return .unknown

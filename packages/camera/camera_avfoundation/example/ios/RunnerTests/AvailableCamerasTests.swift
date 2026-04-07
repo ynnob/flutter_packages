@@ -46,10 +46,15 @@ final class AvailableCamerasTest: XCTestCase {
       telephotoCamera.uniqueID = "3"
       telephotoCamera.position = .back
 
-      var requiredTypes: [AVCaptureDevice.DeviceType] = [
-        .builtInWideAngleCamera, .builtInTelephotoCamera, .builtInUltraWideCamera,
+      let requiredTypes: [AVCaptureDevice.DeviceType] = [
+        .builtInTripleCamera,
+        .builtInDualWideCamera,
+        .builtInDualCamera,
+        .builtInWideAngleCamera,
+        .builtInTelephotoCamera,
+        .builtInUltraWideCamera,
       ]
-      var cameras = [wideAngleCamera, frontFacingCamera, telephotoCamera, ultraWideCamera]
+      let cameras = [wideAngleCamera, frontFacingCamera, telephotoCamera, ultraWideCamera]
 
       XCTAssertEqual(deviceTypes, requiredTypes)
       XCTAssertEqual(mediaType, .video)
@@ -83,8 +88,13 @@ final class AvailableCamerasTest: XCTestCase {
       frontFacingCamera.uniqueID = "1"
       frontFacingCamera.position = .front
 
-      var requiredTypes: [AVCaptureDevice.DeviceType] = [
-        .builtInWideAngleCamera, .builtInTelephotoCamera, .builtInUltraWideCamera,
+      let requiredTypes: [AVCaptureDevice.DeviceType] = [
+        .builtInTripleCamera,
+        .builtInDualWideCamera,
+        .builtInDualCamera,
+        .builtInWideAngleCamera,
+        .builtInTelephotoCamera,
+        .builtInUltraWideCamera,
       ]
       let cameras = [wideAngleCamera, frontFacingCamera]
 
@@ -115,8 +125,13 @@ final class AvailableCamerasTest: XCTestCase {
       unspecifiedCamera.uniqueID = "0"
       unspecifiedCamera.position = .unspecified
 
-      var requiredTypes: [AVCaptureDevice.DeviceType] = [
-        .builtInWideAngleCamera, .builtInTelephotoCamera, .builtInUltraWideCamera,
+      let requiredTypes: [AVCaptureDevice.DeviceType] = [
+        .builtInTripleCamera,
+        .builtInDualWideCamera,
+        .builtInDualCamera,
+        .builtInWideAngleCamera,
+        .builtInTelephotoCamera,
+        .builtInUltraWideCamera,
       ]
       let cameras = [unspecifiedCamera]
 
@@ -134,5 +149,95 @@ final class AvailableCamerasTest: XCTestCase {
     waitForExpectations(timeout: 30, handler: nil)
 
     XCTAssertEqual(resultValue?.first?.lensDirection, .external)
+  }
+
+  func testAvailableCamerasShouldPreferVirtualBackCamerasBeforePhysicalAndFront() {
+    let mockDeviceDiscoverer = MockCameraDeviceDiscoverer()
+    let cameraPlugin = createCameraPlugin(with: mockDeviceDiscoverer)
+    let expectation = self.expectation(description: "Result finished")
+
+    mockDeviceDiscoverer.discoverySessionStub = { _, _, _ in
+      let backWide = MockCaptureDevice()
+      backWide.uniqueID = "wide"
+      backWide.position = .back
+      backWide.deviceType = .builtInWideAngleCamera
+
+      let frontWide = MockCaptureDevice()
+      frontWide.uniqueID = "front"
+      frontWide.position = .front
+      frontWide.deviceType = .builtInWideAngleCamera
+
+      let backTele = MockCaptureDevice()
+      backTele.uniqueID = "tele"
+      backTele.position = .back
+      backTele.deviceType = .builtInTelephotoCamera
+
+      let backUltra = MockCaptureDevice()
+      backUltra.uniqueID = "ultra"
+      backUltra.position = .back
+      backUltra.deviceType = .builtInUltraWideCamera
+
+      let backDual = MockCaptureDevice()
+      backDual.uniqueID = "dual"
+      backDual.position = .back
+      backDual.deviceType = .builtInDualCamera
+
+      let backDualWide = MockCaptureDevice()
+      backDualWide.uniqueID = "dualWide"
+      backDualWide.position = .back
+      backDualWide.deviceType = .builtInDualWideCamera
+
+      let backTriple = MockCaptureDevice()
+      backTriple.uniqueID = "triple"
+      backTriple.position = .back
+      backTriple.deviceType = .builtInTripleCamera
+
+      return [backWide, frontWide, backTele, backUltra, backDual, backDualWide, backTriple]
+    }
+
+    var resultValue: [PlatformCameraDescription]?
+    cameraPlugin.getAvailableCameras { result in
+      resultValue = self.assertSuccess(result)
+      expectation.fulfill()
+    }
+    waitForExpectations(timeout: 30, handler: nil)
+
+    XCTAssertEqual(
+      resultValue?.map { $0.name },
+      ["triple", "dualWide", "dual", "wide", "ultra", "tele", "front"])
+  }
+
+  func testAvailableCamerasShouldMapVirtualLensTypesToWide() {
+    let mockDeviceDiscoverer = MockCameraDeviceDiscoverer()
+    let cameraPlugin = createCameraPlugin(with: mockDeviceDiscoverer)
+    let expectation = self.expectation(description: "Result finished")
+
+    mockDeviceDiscoverer.discoverySessionStub = { _, _, _ in
+      let dual = MockCaptureDevice()
+      dual.uniqueID = "dual"
+      dual.position = .back
+      dual.deviceType = .builtInDualCamera
+
+      let dualWide = MockCaptureDevice()
+      dualWide.uniqueID = "dualWide"
+      dualWide.position = .back
+      dualWide.deviceType = .builtInDualWideCamera
+
+      let triple = MockCaptureDevice()
+      triple.uniqueID = "triple"
+      triple.position = .back
+      triple.deviceType = .builtInTripleCamera
+
+      return [dual, dualWide, triple]
+    }
+
+    var resultValue: [PlatformCameraDescription]?
+    cameraPlugin.getAvailableCameras { result in
+      resultValue = self.assertSuccess(result)
+      expectation.fulfill()
+    }
+    waitForExpectations(timeout: 30, handler: nil)
+
+    XCTAssertEqual(resultValue?.map { $0.lensType }, [.wide, .wide, .wide])
   }
 }
