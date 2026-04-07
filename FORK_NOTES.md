@@ -10,13 +10,18 @@
 ## Rationale
 
 - Prefer AVFoundation virtual back camera devices on supported iPhones.
+- Normalize virtual-device zoom so UI `1.0x` maps to wide-angle baseline on iOS.
 - Preserve API compatibility with `camera` and `camera_platform_interface`.
 - Keep the fork diff small and easy to rebase.
 
 ## Files touched
 
 - `packages/camera/camera_avfoundation/ios/camera_avfoundation/Sources/camera_avfoundation/CameraPlugin.swift`
+- `packages/camera/camera_avfoundation/ios/camera_avfoundation/Sources/camera_avfoundation/CaptureDevice.swift`
+- `packages/camera/camera_avfoundation/ios/camera_avfoundation/Sources/camera_avfoundation/DefaultCamera.swift`
 - `packages/camera/camera_avfoundation/example/ios/RunnerTests/AvailableCamerasTests.swift`
+- `packages/camera/camera_avfoundation/example/ios/RunnerTests/CameraZoomTests.swift`
+- `packages/camera/camera_avfoundation/example/ios/RunnerTests/Mocks/MockCaptureDevice.swift`
 
 ## Rebase checklist
 
@@ -24,4 +29,5 @@
 - Verify `getAvailableCameras` still includes virtual + physical discovery types.
 - Verify deterministic ranking still prefers back virtual devices first.
 - Verify `platformLensType(for:)` still maps virtual device types to `.wide`.
+- Verify virtual-device zoom baseline uses switch-over factors on iOS back cameras with ultra-wide.
 - Run iOS example tests for `camera_avfoundation` and smoke test on real device.

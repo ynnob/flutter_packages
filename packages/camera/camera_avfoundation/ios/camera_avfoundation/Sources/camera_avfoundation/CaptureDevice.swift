@@ -20,6 +20,9 @@ protocol CaptureDevice: NSObjectProtocol {
 
   // Lens type
   var deviceType: AVCaptureDevice.DeviceType { get }
+  var isVirtualDevice: Bool { get }
+  var virtualDeviceSwitchOverVideoZoomFactors: [NSNumber] { get }
+  var constituentDeviceTypes: [AVCaptureDevice.DeviceType] { get }
 
   // Format/Configuration
   var flutterActiveFormat: CaptureDeviceFormat { get set }
@@ -89,6 +92,10 @@ protocol CaptureDeviceInputFactory: NSObjectProtocol {
 
 extension AVCaptureDevice: CaptureDevice {
   var avDevice: AVCaptureDevice { self }
+
+  var constituentDeviceTypes: [AVCaptureDevice.DeviceType] {
+    return self.constituentDevices.map(\AVCaptureDevice.deviceType)
+  }
 
   var flutterActiveFormat: CaptureDeviceFormat {
     get { activeFormat }

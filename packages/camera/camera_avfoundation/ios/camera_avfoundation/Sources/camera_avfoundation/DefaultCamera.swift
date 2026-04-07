@@ -22,8 +22,12 @@ final class DefaultCamera: NSObject, Camera {
 
   var minimumExposureOffset: CGFloat { CGFloat(captureDevice.minExposureTargetBias) }
   var maximumExposureOffset: CGFloat { CGFloat(captureDevice.maxExposureTargetBias) }
-  var minimumAvailableZoomFactor: CGFloat { captureDevice.minAvailableVideoZoomFactor }
-  var maximumAvailableZoomFactor: CGFloat { captureDevice.maxAvailableVideoZoomFactor }
+  var minimumAvailableZoomFactor: CGFloat {
+    return displayedZoomFactor(fromNativeZoom: captureDevice.minAvailableVideoZoomFactor)
+  }
+  var maximumAvailableZoomFactor: CGFloat {
+    return displayedZoomFactor(fromNativeZoom: captureDevice.maxAvailableVideoZoomFactor)
+  }
 
   /// The queue on which `latestPixelBuffer` property is accessed.
   /// To avoid unnecessary contention, do not access `latestPixelBuffer` on the `captureSessionQueue`.
@@ -984,15 +988,17 @@ final class DefaultCamera: NSObject, Camera {
   func setZoomLevel(
     _ zoom: CGFloat, withCompletion completion: @escaping (Result<Void, any Error>) -> Void
   ) {
-    if zoom < captureDevice.minAvailableVideoZoomFactor
-      || zoom > captureDevice.maxAvailableVideoZoomFactor
+    let minimumDisplayedZoom = minimumAvailableZoomFactor
+    let maximumDisplayedZoom = maximumAvailableZoomFactor
+
+    if zoom < minimumDisplayedZoom || zoom > maximumDisplayedZoom
     {
       completion(
         .failure(
           PigeonError(
             code: "ZOOM_ERROR",
             message:
-              "Zoom level out of bounds (zoom level should be between \(captureDevice.minAvailableVideoZoomFactor) and \(captureDevice.maxAvailableVideoZoomFactor).",
+              "Zoom level out of bounds (zoom level should be between \(minimumDisplayedZoom) and \(maximumDisplayedZoom).",
             details: nil)))
       return
     }
@@ -1004,9 +1010,46 @@ final class DefaultCamera: NSObject, Camera {
       return
     }
 
-    captureDevice.videoZoomFactor = zoom
+    captureDevice.videoZoomFactor = nativeZoomFactor(fromDisplayedZoom: zoom)
     captureDevice.unlockForConfiguration()
     completion(.success(()))
+  }
+
+  private var wideAngleBaselineZoomFactor: CGFloat {
+    let minimumNativeZoom = captureDevice.minAvailableVideoZoomFactor
+    let maximumNativeZoom = captureDevice.maxAvailableVideoZoomFactor
+
+    guard captureDevice.position == .back,
+      captureDevice.isVirtualDevice,
+      captureDevice.constituentDeviceTypes.contains(.builtInUltraWideCamera)
+    else {
+      return 1.0
+    }
+
+    let firstSwitchOverZoom = captureDevice.virtualDeviceSwitchOverVideoZoomFactors
+      .map { CGFloat(truncating: $0) }
+      .filter { $0 > minimumNativeZoom }
+      .sorted()
+      .first
+
+    guard let firstSwitchOverZoom = firstSwitchOverZoom else {
+      return 1.0
+    }
+
+    return min(max(firstSwitchOverZoom, minimumNativeZoom), maximumNativeZoom)
+  }
+
+  private func displayedZoomFactor(fromNativeZoom nativeZoom: CGFloat) -> CGFloat {
+    let baselineZoom = max(wideAngleBaselineZoomFactor, CGFloat(0.0001))
+    return nativeZoom / baselineZoom
+  }
+
+  private func nativeZoomFactor(fromDisplayedZoom displayedZoom: CGFloat) -> CGFloat {
+    let baselineZoom = max(wideAngleBaselineZoomFactor, CGFloat(0.0001))
+    let nativeZoom = displayedZoom * baselineZoom
+    return min(
+      max(nativeZoom, captureDevice.minAvailableVideoZoomFactor),
+      captureDevice.maxAvailableVideoZoomFactor)
   }
 
   func setVideoStabilizationMode(

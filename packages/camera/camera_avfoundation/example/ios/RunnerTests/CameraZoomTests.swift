@@ -108,4 +108,68 @@ final class CameraZoomTests: XCTestCase {
 
     XCTAssertEqual(camera.minimumAvailableZoomFactor, targetZoom)
   }
+
+  func testSetZoomLevel_mapsToWideBaselineOnVirtualUltraWideDevice() {
+    let (camera, mockDevice) = createCamera()
+
+    mockDevice.isVirtualDevice = true
+    mockDevice.constituentDeviceTypes = [
+      .builtInUltraWideCamera,
+      .builtInWideAngleCamera,
+      .builtInTelephotoCamera,
+    ]
+    mockDevice.virtualDeviceSwitchOverVideoZoomFactors = [2.0 as NSNumber, 6.0 as NSNumber]
+    mockDevice.minAvailableVideoZoomFactor = 1.0
+    mockDevice.maxAvailableVideoZoomFactor = 15.0
+    mockDevice.position = .back
+
+    var appliedNativeZoom: CGFloat?
+    mockDevice.setVideoZoomFactorStub = { zoom in
+      appliedNativeZoom = zoom
+    }
+
+    let expectation = expectation(description: "Call completed")
+    camera.setZoomLevel(1.0) { result in
+      let _ = self.assertSuccess(result)
+      expectation.fulfill()
+    }
+
+    waitForExpectations(timeout: 30)
+
+    XCTAssertEqual(appliedNativeZoom, 2.0)
+  }
+
+  func testMinimumAvailableZoomFactor_normalizesForVirtualUltraWideDevice() {
+    let (camera, mockDevice) = createCamera()
+
+    mockDevice.isVirtualDevice = true
+    mockDevice.constituentDeviceTypes = [
+      .builtInUltraWideCamera,
+      .builtInWideAngleCamera,
+      .builtInTelephotoCamera,
+    ]
+    mockDevice.virtualDeviceSwitchOverVideoZoomFactors = [2.0 as NSNumber, 6.0 as NSNumber]
+    mockDevice.minAvailableVideoZoomFactor = 1.0
+    mockDevice.maxAvailableVideoZoomFactor = 15.0
+    mockDevice.position = .back
+
+    XCTAssertEqual(camera.minimumAvailableZoomFactor, 0.5)
+  }
+
+  func testMaximumAvailableZoomFactor_normalizesForVirtualUltraWideDevice() {
+    let (camera, mockDevice) = createCamera()
+
+    mockDevice.isVirtualDevice = true
+    mockDevice.constituentDeviceTypes = [
+      .builtInUltraWideCamera,
+      .builtInWideAngleCamera,
+      .builtInTelephotoCamera,
+    ]
+    mockDevice.virtualDeviceSwitchOverVideoZoomFactors = [2.0 as NSNumber, 6.0 as NSNumber]
+    mockDevice.minAvailableVideoZoomFactor = 1.0
+    mockDevice.maxAvailableVideoZoomFactor = 15.0
+    mockDevice.position = .back
+
+    XCTAssertEqual(camera.maximumAvailableZoomFactor, 7.5)
+  }
 }

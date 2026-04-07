@@ -30,6 +30,9 @@ class MockCaptureDevice: NSObject, CaptureDevice {
   var uniqueID = ""
   var position = AVCaptureDevice.Position.unspecified
   var deviceType = AVCaptureDevice.DeviceType.builtInWideAngleCamera
+  var isVirtualDevice = false
+  var virtualDeviceSwitchOverVideoZoomFactors: [NSNumber] = []
+  var constituentDeviceTypes: [AVCaptureDevice.DeviceType] = []
 
   var flutterActiveFormat: CaptureDeviceFormat {
     get {
