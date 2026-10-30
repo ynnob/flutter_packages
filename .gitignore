@@ -58,3 +58,6 @@ gradlew.bat
 .project
 .classpath
 .settings
+
+# Local scratch artifacts
+.work/scratch/
